@@ -919,3 +919,96 @@ extension UIView {
     
 }
 ```
+# Lecture - 4
+
+# Using Dictionary Array
+
+### Facebook Image URL Caching
+
+```swift
+/* Image Cache Array, This is global variable */
+var imageCache = [String: UIImage]()
+
+//getting image from server
+if let statusImageURL = post?.statusImageURL {
+    
+    /* Image Cache */
+    if let image = imageCache[statusImageURL] {
+        statusImageView.image = image
+    } else {
+        if let url: URL = URL(string: statusImageURL) {
+            URLSession.shared.dataTask(with: url) { (data, response, error) in
+                if error != nil {
+                    print(error!)
+                    return
+                }
+                if let data = data {
+                    let image = UIImage(data: data)
+                    
+                    /* Image Cache, imageURL을 key값으로 잡고 이미지를 저장 */
+                    imageCache[statusImageURL] = image
+                    
+                    DispatchQueue.main.async {
+                        self.statusImageView.image = image
+                    }
+                }
+            }.resume()
+        }
+    }
+}
+```
+
+### One way to handle image cache
+
+```swift
+/* image cache */
+override func didReceiveMemoryWarning() {
+    imageCache = nil
+}
+```
+
+# Using NSCache
+
+### NSCache, UserDefaults처럼 사용하면 됨, key - value
+
+```swift
+/* Image Cache Array */
+var imageCache = NSCache<NSString, UIImage>()
+
+//getting image from server
+if let statusImageURL = post?.statusImageURL {
+    /* Image Cache */
+    if let image = imageCache.object(forKey: NSString(string: statusImageURL)) {
+        statusImageView.image = image
+    } else {
+        if let url: URL = URL(string: statusImageURL) {
+            URLSession.shared.dataTask(with: url) { (data, response, error) in
+                if error != nil {
+                    print(error!)
+                    return
+                }
+                if let data = data {
+                    if let image = UIImage(data: data) {
+                        imageCache.setObject(image, forKey: NSString(string: statusImageURL))
+                        DispatchQueue.main.async {
+                             self.statusImageView.image = image
+                        }
+                    }
+                }
+            }.resume()
+        }
+    }
+}
+```
+
+# USING, URLCache
+
+```swift
+//cache initialzation, cahcing을 알아서 해줌
+let memoryCapacity = 500 * 1024 * 1024
+let diskCapacity = 500 * 1024 * 1024
+let urlCache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "myDiskPath")
+URLCache.shared = urlCache
+```
+
+⇒ URL 전체를 알아서 handling

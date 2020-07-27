@@ -10,11 +10,14 @@ import UIKit
 
 let cellId = "cellId"
 
+/* Image Cache Array */
+//var imageCache = NSCache<NSString, UIImage>()
+
 class Post {
     var name: String?
     var profileImageName: String?
     var statusText: String?
-    var statusImageName: String?
+    var statusImageURL: String?
     var numLikes: Int?
     var numComments: Int?
 }
@@ -23,8 +26,15 @@ class FeedController: UICollectionViewController, UICollectionViewDelegateFlowLa
 
     var posts = [Post]()
     
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        //cache initialzation, 자동으로 알아서 해줌
+        let memoryCapacity = 500 * 1024 * 1024
+        let diskCapacity = 500 * 1024 * 1024
+        let urlCache = URLCache(memoryCapacity: memoryCapacity, diskCapacity: diskCapacity, diskPath: "myDiskPath")
+        URLCache.shared = urlCache
         
         let postGhandi = Post()
         postGhandi.name = "Ghandi"
@@ -32,7 +42,7 @@ class FeedController: UICollectionViewController, UICollectionViewDelegateFlowLa
         postGhandi.profileImageName = "ghandi"
         postGhandi.numLikes = 150
         postGhandi.numComments = 175
-        postGhandi.statusImageName = "ghandi_content"
+        postGhandi.statusImageURL = "ghandi_content"
         
         let postSteve = Post()
         postSteve.name = "Steve Jobs"
@@ -42,7 +52,7 @@ class FeedController: UICollectionViewController, UICollectionViewDelegateFlowLa
         postSteve.profileImageName = "steve"
         postSteve.numLikes = 186
         postSteve.numComments = 132
-        postSteve.statusImageName = "steve_content"
+        postSteve.statusImageURL = "steve_content"
         
         posts.append(postGhandi)
         posts.append(postSteve)
@@ -67,7 +77,6 @@ class FeedController: UICollectionViewController, UICollectionViewDelegateFlowLa
     }
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
-        
         //calculate height
         if let statusText = posts[indexPath.row].statusText {
             let rect = NSString(string: statusText)
@@ -80,10 +89,8 @@ class FeedController: UICollectionViewController, UICollectionViewDelegateFlowLa
             
             //전체 constraint height값을 더해준다.
             let knownHeight: CGFloat = 8 + 44 + 4 + 4 + 200 + 8 + 24 + 8 + 44
-            
             return CGSize(width: view.frame.width, height: rect.height + knownHeight + 16)
         }
-        
         return CGSize(width: view.frame.width, height: 500)
     }
     
@@ -91,6 +98,7 @@ class FeedController: UICollectionViewController, UICollectionViewDelegateFlowLa
     override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
         collectionView.collectionViewLayout.invalidateLayout()
+        
     }
 
 }
@@ -135,8 +143,51 @@ class FeedCell: UICollectionViewCell {
                 profileImageView.image = UIImage(named: profileImageName)
             }
             
-            if let statusImageName = post?.statusImageName {
-                statusImageView.image = UIImage(named: statusImageName)
+//            statusImageView.image = nil
+            
+            //getting image from server and use NSCache for cache
+//            if let statusImageURL = post?.statusImageURL {
+//                /* Image Cache */
+//                if let image = imageCache.object(forKey: NSString(string: statusImageURL)) {
+//                    statusImageView.image = image
+//                } else {
+//                    if let url: URL = URL(string: statusImageURL) {
+//                        URLSession.shared.dataTask(with: url) { (data, response, error) in
+//                            if error != nil {
+//                                print(error!)
+//                                return
+//                            }
+//                            if let data = data {
+//                                if let image = UIImage(data: data) {
+//                                    imageCache.setObject(image, forKey: NSString(string: statusImageURL))
+//                                    DispatchQueue.main.async {
+//                                         self.statusImageView.image = image
+//                                    }
+//                                }
+//                            }
+//                        }.resume()
+//                    }
+//                }
+//            }
+            
+            //getting image from server: NSURL Default Session
+            if let statusImageURL = post?.statusImageURL {
+                    if let url: URL = URL(string: statusImageURL) {
+                        URLSession.shared.dataTask(with: url) { (data, response, error) in
+                            if error != nil {
+                                print(error!)
+                                return
+                            }
+                            if let data = data {
+                                if let image = UIImage(data: data) {
+
+                                    DispatchQueue.main.async {
+                                         self.statusImageView.image = image
+                                    }
+                                }
+                            }
+                        }.resume()
+                    }
             }
             
             if let numlikes = post?.numLikes, let numComments = post?.numComments {
